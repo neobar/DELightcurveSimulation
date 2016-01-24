@@ -10,7 +10,7 @@ Example code for using the commands in DELCgen to simulate lightcurves
 
 """
 
-from DELCgen.DELCgen import *
+from DELCgen import *
 import scipy.stats as st
 
 #------- Input parameters -------
@@ -40,14 +40,14 @@ mix_model = Mixture_Dist([st.gamma, st.lognorm], [3, 3], [
 datalc.STD_Estimate()
 
 # simulate artificial light curve with Timmer & Koenig method
-tklc = Simulate_TK_Lightcurve(datalc, BendingPL, (A, v_bend, a_low, a_high, c),
-                              RedNoiseL, aliasTbin, RandomSeed)
+tklc = Simulate_TK_Lightcurve(BendingPL, (A, v_bend, a_low, a_high, c),
+                              RedNoiseL=RedNoiseL, aliasTbin=aliasTbin, randomSeed=RandomSeed, lightcurve=datalc)
 
 # simulate artificial light curve with Emmanoulopoulos method, scipy
 # distribution
-delc_mod = Simulate_DE_Lightcurve(datalc, BendingPL, (A, v_bend, a_low, a_high, c),
+delc_mod = Simulate_DE_Lightcurve(BendingPL, (A, v_bend, a_low, a_high, c),
                                   mix_model, (kappa, theta, lnsig, np.exp(lnmu),
-                                              weight, 1 - weight))
+                                              weight, 1 - weight),lightcurve=datalc)
 
 # simulate artificial light curve with Emmanoulopoulos method, using the PSD
 # and PDF of the data light curve, with default parameters (bending power law

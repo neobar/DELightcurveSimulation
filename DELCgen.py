@@ -1010,8 +1010,8 @@ class Lightcurve(object):
         self.STD_Estimate(self.psdModel, self.psdFit['x'])
 
         # simulate lightcurve
-        lc = Simulate_DE_Lightcurve(self, self.psdModel, self.psdFit['x'],
-                                    self.pdfModel, self.pdfFit['x'], size=size, LClength=LClength)
+        lc = Simulate_DE_Lightcurve(self.psdModel, self.psdFit['x'],
+                                    self.pdfModel, self.pdfFit['x'], size=size, LClength=LClength, lightcurve=self)
 
         return lc
 
