@@ -49,8 +49,9 @@ delc_mod = Simulate_DE_Lightcurve(BendingPL, (A, v_bend, a_low, a_high, c),
                                   mix_model, (kappa, theta, lnsig, np.exp(lnmu),
                                               weight, 1 - weight),lightcurve=datalc)
 
-# simulate artificial light curve with Emmanoulopoulos method, using the PSD
-# and PDF of the data light curve, with default parameters (bending power law
+# simulate artificial light curve with Emmanoulopoulos method, ***using the PSD
+# and PDF of the data light curve(Both the PSD and PDF are fitted first, then used in simulation)***,
+# with default parameters (bending power law
 # for PSD and mixture distribution of gamma and lognormal distribution for PDF)
 delc = datalc.Simulate_DE_Lightcurve()
 
@@ -60,3 +61,6 @@ delc.Save_Lightcurve('lightcurve.dat')
 # plot lightcurves and their PSDs ands PDFs for comparison
 Comparison_Plots([datalc, tklc, delc, delc_mod], names=["Data LC", "Timmer \& Koenig",
                                                         "Emmanoulopoulos from model", "Emmanoulopoulos from data"], bins=25)
+
+
+## Most the warning comes from the fitting process of the PSD when the scipy.optimize.minimize is trying to minimize the likelihood function.
