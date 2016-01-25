@@ -522,21 +522,18 @@ def EmmanLC(time, mean, std, RedNoiseL, aliasTbin, randomSeed, tbin,
     else:
         length = len(time)
 
-    ampAdj = None
-
     # Produce Timmer & Koenig simulated LC
     if verbose:
         print("Running Timmer & Koening...")
 
     tries = 0
-    success = False
 
-    while success == False and tries < 5:
+    while tries < 5:
         try:
             shortLC, fft, periodogram = \
                 TimmerKoenig(RedNoiseL, aliasTbin, randomSeed, tbin, length,
                                 std, mean, PSDmodel, PSDparams)
-            success = True
+            tries = 5 + 1
 #            if LClength:
 #                shortLC, fft, periodogram = \
 #                    TimmerKoenig(RedNoiseL, aliasTbin, randomSeed, tbin, LClength,
@@ -573,45 +570,38 @@ def EmmanLC(time, mean, std, RedNoiseL, aliasTbin, randomSeed, tbin,
     # Iterate over the random sample until its PSD (and PDF) match the data
     if verbose:
         print("Iterating...")
-    i = 0
-    oldSurrogate = np.array([-1])
-    surrogate = np.array([1])
 
-    while i < maxIterations and np.array_equal(
-            surrogate, oldSurrogate) == False:
+    i = 0
+    surrogate = [time, dist]  # start with random distribution from PDF
+
+    while i < maxIterations:
 
         oldSurrogate = surrogate
 
-        if i == 0:
-            surrogate = [time, dist]  # start with random distribution from PDF
-        else:
-            surrogate = (ampAdj - np.mean(ampAdj)) / np.std(ampAdj)
-            surrogate = [time, (surrogate * std) + mean]  # renormalised LC
-
         ffti = ft.fft(surrogate[1])
-
-        PSDlast = ((2.0 * tbin) / (length * (mean**2))) * np.absolute(ffti)**2
-        PSDlast = [periodogram[0], np.take(PSDlast, range(1, length // 2 + 1))]
 
         fftAdj = np.absolute(fft) * (np.cos(np.angle(ffti)) +
                                      1j * np.sin(np.angle(ffti)))  # adjust fft
         LCadj = ft.ifft(fftAdj)
-        LCadj = [
-            time / tbin,
+        LCadj = [time / tbin,
             ((LCadj - np.mean(LCadj)) / np.std(LCadj)) * std + mean]
 
         PSDLCAdj = ((2.0 * tbin) / (length * np.mean(LCadj)**2.0)) \
             * np.absolute(ft.fft(LCadj))**2
-        PSDLCAdj = [
-            periodogram[0], np.take(PSDLCAdj, range(1, length // 2 + 1))]
-        sortIndices = np.argsort(LCadj[1])
-        sortPos = np.argsort(sortIndices)
-        ampAdj = sortdist[sortPos]
+        PSDLCAdj = [periodogram[0], np.take(PSDLCAdj, range(1, length // 2 + 1))]
+        ampAdj = sortdist[np.argsort(np.argsort(LCadj[1]))]
 
-        i += 1
+        surrogate = (ampAdj - np.mean(ampAdj)) / np.std(ampAdj)
+        surrogate = [time, (surrogate * std) + mean]  # renormalised LC
+
+        i = i + 1 if np.array_equal(surrogate, oldSurrogate) == False else maxIterations + 1
+        print(i)
 
     if verbose:
         print("Converged in {} iterations".format(i))
+
+    PSDlast = ((2.0 * tbin) / (length * (mean**2))) * np.absolute(ffti)**2
+    PSDlast = [periodogram[0], np.take(PSDlast, range(1, length // 2 + 1))]
 
     return surrogate, PSDlast, shortLC, periodogram, ffti
 
