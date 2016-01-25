@@ -1469,7 +1469,7 @@ def Simulate_DE_Lightcurve(PSDmodel, PSDparams, PDFmodel, PDFparams, lightcurve=
         length = kwargs.pop('length', 100)
         mean = kwargs.pop('mean', 1)
         std = kwargs.pop('std', 1)
-        time = np.arange(0, length * tbin)
+        time = np.arange(0, length ) * tbin
 #        if tbin is None:
 #            tbin = 1
 #        if LClength is None:
