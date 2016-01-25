@@ -1289,8 +1289,7 @@ def Load_Lightcurve(fileroute, tbin):
 
 
 def Simulate_TK_Lightcurve(PSDmodel, PSDmodelArgs, lightcurve=None,
-                           tbin=None, length=None, mean=None, std=None,
-                           RedNoiseL=100, aliasTbin=1, randomSeed=None):
+                           RedNoiseL=100, aliasTbin=1, randomSeed=None, **kwargs):
     '''
     Creates a (simulated) lightcurve object from another (data) lightcurve
     object, using the Timmer & Koenig (1995) method. The estimated standard
@@ -1332,31 +1331,37 @@ def Simulate_TK_Lightcurve(PSDmodel, PSDmodelArgs, lightcurve=None,
     '''
 
     if lightcurve:
-        if tbin is None:
-            tbin = lightcurve.tbin
-        if length is None:
-            length = lightcurve.length
-        if mean is None:
-            mean = lightcurve.mean
-        if std is None:
-            if lightcurve.std_est is None:
-                std = lightcurve.std
-            else:
-                std = lightcurve.std
-
+        tbin = kwargs.pop('tbin', lightcurve.tbin)
+        length = kwargs.pop('length', lightcurve.length)
+        mean = kwargs.pop('mean', lightcurve.mean)
+        std = kwargs.pop('std', lightcurve.std)
+#        if tbin is None:
+#            tbin = lightcurve.tbin
+#        if length is None:
+#            length = lightcurve.length
+#        if mean is None:
+#            mean = lightcurve.mean
+#        if std is None:
+#            if lightcurve.std_est is None:
+#                std = lightcurve.std
+#            else:
+#                std = lightcurve.std
         time = lightcurve.time
 
     else:
+        tbin = kwargs.pop('tbin', 1)
+        length = kwargs.pop('length', 1000)
+        mean = kwargs.pop('mean', 1)
+        std = kwargs.pop('std', 1)
         time = np.arange(0, length * tbin)
-
-        if tbin is None:
-            tbin = 1
-        if length is None:
-            length = 1000
-        if mean is None:
-            mean = 1
-        if std is None:
-            std = 1
+#        if tbin is None:
+#            tbin = 1
+#        if length is None:
+#            length = 1000
+#        if mean is None:
+#            mean = 1
+#        if std is None:
+#            std = 1
 
     shortLC, fft, periodogram = \
         TimmerKoenig(RedNoiseL, aliasTbin, randomSeed, tbin,
@@ -1368,11 +1373,9 @@ def Simulate_TK_Lightcurve(PSDmodel, PSDmodelArgs, lightcurve=None,
     return lc
 
 
-def Simulate_DE_Lightcurve(PSDmodel, PSDparams, PDFmodel, PDFparams,
-                           lightcurve=None, tbin=None, LClength=None,
-                           mean=None, std=None, maxFlux=None,
+def Simulate_DE_Lightcurve(PSDmodel, PSDparams, PDFmodel, PDFparams, lightcurve=None,
                            RedNoiseL=100, aliasTbin=1, randomSeed=None,
-                           maxIterations=1000, verbose=False, size=1):
+                           maxIterations=1000, verbose=False, size=1, **kwargs):
     '''
     Creates a (simulated) lightcurve object from another (data) lightcurve
     object, using the Emmanoulopoulos (2013) method. The estimated standard
@@ -1442,34 +1445,42 @@ def Simulate_DE_Lightcurve(PSDmodel, PSDparams, PDFmodel, PDFparams,
     lcs = np.array([])
 
     if lightcurve:
-        if tbin is None:
-            tbin = lightcurve.tbin
-        if LClength is None:
-            LClength = lightcurve.length
-        if mean is None:
-            mean = lightcurve.mean
-        if std is None:
-            if lightcurve.std_est is None:
-                std = lightcurve.std
-            else:
-                std = lightcurve.std
+        tbin = kwargs.pop('tbin', lightcurve.tbin)
+        LClength = kwargs.pop('LClength', lightcurve.length)
+        mean = kwargs.pop('mean', lightcurve.mean)
+        std = kwargs.pop('std', lightcurve.std)
+#        if tbin is None:
+#            tbin = lightcurve.tbin
+#        if LClength is None:
+#            LClength = lightcurve.length
+#        if mean is None:
+#            mean = lightcurve.mean
+#        if std is None:
+#            if lightcurve.std_est is None:
+#                std = lightcurve.std
+#            else:
+#                std = lightcurve.std
 
         time = lightcurve.time
 
-        if maxFlux is None:
-            maxFlux = max(lightcurve.flux)
+        maxFlux = kwargs.pop('maxFlux', max(lightcurve.flux))
+#        if maxFlux is None:
+#            maxFlux = max(lightcurve.flux)
 
     else:
-        if tbin is None:
-            tbin = 1
-        if LClength is None:
-            LClength = 100
-        if mean is None:
-            mean = 1
-        if std is None:
-            std = 1
-
+        tbin = kwargs.pop('tbin', 1)
+        LClength = kwargs.pop('LClength', 100)
+        mean = kwargs.pop('mean', 1)
+        std = kwargs.pop('std', 1)
         time = np.arange(0, LClength * tbin)
+#        if tbin is None:
+#            tbin = 1
+#        if LClength is None:
+#            LClength = 100
+#        if mean is None:
+#            mean = 1
+#        if std is None:
+#            std = 1
 
     for n in range(size):
 
@@ -1489,7 +1500,4 @@ def Simulate_DE_Lightcurve(PSDmodel, PSDparams, PDFmodel, PDFparams,
 
         lcs = np.append(lcs, lc)
 
-    if n > 1:
-        return lcs
-    else:
-        return lc
+    return lcs if n > 1 else lc
