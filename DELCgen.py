@@ -428,18 +428,18 @@ def TimmerKoenig(RedNoiseL, aliasTbin, randomSeed, tbin, LClength,
 
     # -------- Add complex Gaussian noise to PL ------------------------------
     rnd.seed(randomSeed)
-    real = (np.sqrt(powerlaw * 0.5)) * \
-        rnd.normal(0, 1, ((RedNoiseL * LClength) / 2))
-    imag = (np.sqrt(powerlaw * 0.5)) * \
-        rnd.normal(0, 1, ((RedNoiseL * LClength) / 2))
-    positive = np.vectorize(complex)(real, imag)  # array of +ve, complex nos
-    noisypowerlaw = np.append(positive, positive.conjugate()[::-1])
-    znoisypowerlaw = np.insert(noisypowerlaw, 0, complex(0.0, 0.0))  # add 0
+    real = rnd.normal(size = (RedNoiseL * LClength) / 2)
+    imag = rnd.normal(size = (RedNoiseL * LClength) / 2)
+    positive = np.sqrt(powerlaw / 2.) * (real + 1j * imag)
+#    positive = np.vectorize(complex)(real, imag)  # array of +ve, complex nos
+#    noisypowerlaw = np.append(positive, positive.conjugate()[::-1])
+    znoisypowerlaw = np.hstack((0, positive, positive.conjugate()[::-1]))
+#    znoisypowerlaw = np.insert(noisypowerlaw, 0, complex(0.0, 0.0))  # add 0
 
     # --------- Fourier transform the noisy power law ------------------------
     # should be ONLY  real numbers
-    inversefourier = np.fft.ifft(znoisypowerlaw)
-    longlightcurve = inversefourier.real       # take real part of the transform
+    longlightcurve = ft.ifft(znoisypowerlaw).real
+    # take real part of the transform
 
     # extract random cut and normalise output lightcurve,
     # produce fft & periodogram
@@ -448,8 +448,7 @@ def TimmerKoenig(RedNoiseL, aliasTbin, randomSeed, tbin, LClength,
     else:
         extract = rnd.randint(LClength - 1, RedNoiseL * LClength + 1)
         lightcurve = np.take(longlightcurve, range(extract, extract + LClength))
-    lightcurve = (lightcurve - np.mean(lightcurve)) / \
-        np.std(lightcurve) * std + mean
+    lightcurve = (lightcurve - np.mean(lightcurve)) / np.std(lightcurve) * std + mean
     fft = ft.fft(lightcurve)
     periodogram = ((2.0 * tbin * aliasTbin) / (LClength *
                                                (np.mean(lightcurve)**2))) * np.absolute(fft)**2
@@ -461,7 +460,7 @@ def TimmerKoenig(RedNoiseL, aliasTbin, randomSeed, tbin, LClength,
 # The Emmanoulopoulos Loop
 
 
-def EmmanLC(time, mean, std, RedNoiseL, aliasTbin, RandomSeed, tbin,
+def EmmanLC(time, mean, std, RedNoiseL, aliasTbin, randomSeed, tbin,
             PSDmodel, PSDparams, PDFmodel, PDFparams, maxFlux=None,
             maxIterations=1000, verbose=False, LClength=None):
     '''
@@ -482,7 +481,7 @@ def EmmanLC(time, mean, std, RedNoiseL, aliasTbin, RandomSeed, tbin,
         RedNoiseL (int) - multiple by which simulated LC is lengthened compared
                             to the data LC to avoid red noise leakage
         aliasTbin (int) - divisor to avoid aliasing
-        RandomSeed (int)- random number generation seed, for repeatability
+        randomSeed (int)- random number generation seed, for repeatability
         tbin (int)      - lightcurve bin size
         PSDmodel (fn)   - Function for model used to fit PSD
         PSDparams (tuple,var)
@@ -519,13 +518,7 @@ def EmmanLC(time, mean, std, RedNoiseL, aliasTbin, RandomSeed, tbin,
 
     if LClength:
         length = LClength
-        time = np.arange(
-            0,
-            tbin *
-            LClength /
-            RedNoiseL,
-            tbin /
-            float(RedNoiseL))
+        time = np.arange(0, tbin * LClength / RedNoiseL, tbin / float(RedNoiseL))
     else:
         length = len(time)
 
@@ -540,16 +533,20 @@ def EmmanLC(time, mean, std, RedNoiseL, aliasTbin, RandomSeed, tbin,
 
     while success == False and tries < 5:
         try:
-            if LClength:
-                shortLC, fft, periodogram = \
-                    TimmerKoenig(RedNoiseL, aliasTbin, RandomSeed, tbin, LClength,
-                                 std, mean, PSDmodel, PSDparams)
-                success = True
-            else:
-                shortLC, fft, periodogram = \
-                    TimmerKoenig(RedNoiseL, aliasTbin, RandomSeed, tbin, len(time),
-                                 std, mean, PSDmodel, PSDparams)
-                success = True
+            shortLC, fft, periodogram = \
+                TimmerKoenig(RedNoiseL, aliasTbin, randomSeed, tbin, length,
+                                std, mean, PSDmodel, PSDparams)
+            success = True
+#            if LClength:
+#                shortLC, fft, periodogram = \
+#                    TimmerKoenig(RedNoiseL, aliasTbin, randomSeed, tbin, LClength,
+#                                 std, mean, PSDmodel, PSDparams)
+#                success = True
+#            else:
+#                shortLC, fft, periodogram = \
+#                    TimmerKoenig(RedNoiseL, aliasTbin, randomSeed, tbin, len(time),
+#                                 std, mean, PSDmodel, PSDparams)
+#                success = True
         except IndexError:
             tries += 1
             print("Simulation failed for some reason (IndexError) - restarting...")
@@ -1446,7 +1443,7 @@ def Simulate_DE_Lightcurve(PSDmodel, PSDparams, PDFmodel, PDFparams, lightcurve=
 
     if lightcurve:
         tbin = kwargs.pop('tbin', lightcurve.tbin)
-        LClength = kwargs.pop('LClength', lightcurve.length)
+        length = kwargs.pop('length', lightcurve.length)
         mean = kwargs.pop('mean', lightcurve.mean)
         std = kwargs.pop('std', lightcurve.std)
 #        if tbin is None:
@@ -1469,10 +1466,10 @@ def Simulate_DE_Lightcurve(PSDmodel, PSDparams, PDFmodel, PDFparams, lightcurve=
 
     else:
         tbin = kwargs.pop('tbin', 1)
-        LClength = kwargs.pop('LClength', 100)
+        length = kwargs.pop('length', 100)
         mean = kwargs.pop('mean', 1)
         std = kwargs.pop('std', 1)
-        time = np.arange(0, LClength * tbin)
+        time = np.arange(0, length * tbin)
 #        if tbin is None:
 #            tbin = 1
 #        if LClength is None:
@@ -1488,7 +1485,7 @@ def Simulate_DE_Lightcurve(PSDmodel, PSDparams, PDFmodel, PDFparams, lightcurve=
             EmmanLC(time, mean, std,
                     RedNoiseL, aliasTbin, randomSeed, tbin,
                     PSDmodel, PSDparams, PDFmodel, PDFparams, maxFlux,
-                    maxIterations, verbose, LClength)
+                    maxIterations, verbose, length)
         lc = Lightcurve(surrogate[0], surrogate[1], tbin=tbin)
         lc.fft = fft
         lc.periodogram = PSDlast
