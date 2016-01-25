@@ -1350,7 +1350,7 @@ def Simulate_TK_Lightcurve(PSDmodel, PSDmodelArgs, lightcurve=None,
         length = kwargs.pop('length', 1000)
         mean = kwargs.pop('mean', 1)
         std = kwargs.pop('std', 1)
-        time = np.arange(0, length * tbin)
+        time = np.arange(0, length) * tbin
 #        if tbin is None:
 #            tbin = 1
 #        if length is None:
