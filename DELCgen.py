@@ -526,16 +526,7 @@ def EmmanLC(length, mean, std, RedNoiseL, aliasTbin, randomSeed, tbin,
                 TimmerKoenig(RedNoiseL, aliasTbin, randomSeed, tbin, length,
                                 std, mean, PSDmodel, PSDparams)
             tries = -1
-#            if LClength:
-#                shortLC, fft, periodogram = \
-#                    TimmerKoenig(RedNoiseL, aliasTbin, randomSeed, tbin, LClength,
-#                                 std, mean, PSDmodel, PSDparams)
-#                success = True
-#            else:
-#                shortLC, fft, periodogram = \
-#                    TimmerKoenig(RedNoiseL, aliasTbin, randomSeed, tbin, len(time),
-#                                 std, mean, PSDmodel, PSDparams)
-#                success = True
+
         except IndexError:
             tries -= 1
             print("Simulation failed for some reason (IndexError) - restarting...")
@@ -575,10 +566,6 @@ def EmmanLC(length, mean, std, RedNoiseL, aliasTbin, randomSeed, tbin,
         fftAdj = np.absolute(fft) * (np.cos(angle) + 1j * np.sin(angle))  # adjust fft
         LCadj = ft.ifft(fftAdj)
 
-#        PSDLCAdj = ((2.0 * tbin) / (length * np.mean(LCadj)**2.0)) \
-#            * np.absolute(ft.fft(LCadj))**2
-#        print(PSDLCAdj.shape)
-#        PSDLCAdj = [periodogram[0], np.take(PSDLCAdj, range(1, length // 2 + 1))]
         surrogate = sortdist[np.argsort(np.argsort(LCadj))]
 
         i = i - 1 if np.array_equal(surrogate, oldSurrogate) == False else -1
@@ -1309,12 +1296,6 @@ def Simulate_TK_Lightcurve(PSDmodel, PSDmodelArgs, lightcurve=None,
         length = kwargs.pop('length', lightcurve.length)
         mean = kwargs.pop('mean', lightcurve.mean)
         std = kwargs.pop('std', lightcurve.std)
-#        if tbin is None:
-#            tbin = lightcurve.tbin
-#        if length is None:
-#            length = lightcurve.length
-#        if mean is None:
-#            mean = lightcurve.mean
 #        if std is None:
 #            if lightcurve.std_est is None:
 #                std = lightcurve.std
@@ -1328,14 +1309,6 @@ def Simulate_TK_Lightcurve(PSDmodel, PSDmodelArgs, lightcurve=None,
         mean = kwargs.pop('mean', 1)
         std = kwargs.pop('std', 1)
         time = np.arange(0, length) * tbin
-#        if tbin is None:
-#            tbin = 1
-#        if length is None:
-#            length = 1000
-#        if mean is None:
-#            mean = 1
-#        if std is None:
-#            std = 1
 
     shortLC, fft, periodogram = \
         TimmerKoenig(RedNoiseL, aliasTbin, randomSeed, tbin,
@@ -1416,19 +1389,11 @@ def Simulate_DE_Lightcurve(PSDmodel, PSDparams, PDFmodel, PDFparams, lightcurve=
                       lightcurve objects if size > 1
     '''
 
-    lcs = np.array([])
-
     if lightcurve:
         tbin = kwargs.pop('tbin', lightcurve.tbin)
         length = kwargs.pop('length', lightcurve.length)
         mean = kwargs.pop('mean', lightcurve.mean)
         std = kwargs.pop('std', lightcurve.std)
-#        if tbin is None:
-#            tbin = lightcurve.tbin
-#        if LClength is None:
-#            LClength = lightcurve.length
-#        if mean is None:
-#            mean = lightcurve.mean
 #        if std is None:
 #            if lightcurve.std_est is None:
 #                std = lightcurve.std
@@ -1438,8 +1403,6 @@ def Simulate_DE_Lightcurve(PSDmodel, PSDparams, PDFmodel, PDFparams, lightcurve=
         time = lightcurve.time
 
         maxFlux = kwargs.pop('maxFlux', max(lightcurve.flux))
-#        if maxFlux is None:
-#            maxFlux = max(lightcurve.flux)
 
     else:
         tbin = kwargs.pop('tbin', 1)
@@ -1447,14 +1410,8 @@ def Simulate_DE_Lightcurve(PSDmodel, PSDparams, PDFmodel, PDFparams, lightcurve=
         mean = kwargs.pop('mean', 1)
         std = kwargs.pop('std', 1)
         time = np.arange(0, length ) * tbin
-#        if tbin is None:
-#            tbin = 1
-#        if LClength is None:
-#            LClength = 100
-#        if mean is None:
-#            mean = 1
-#        if std is None:
-#            std = 1
+
+    lcs = np.array([])
 
     for n in range(size):
 
@@ -1463,7 +1420,7 @@ def Simulate_DE_Lightcurve(PSDmodel, PSDparams, PDFmodel, PDFparams, lightcurve=
                     RedNoiseL, aliasTbin, randomSeed, tbin,
                     PSDmodel, PSDparams, PDFmodel, PDFparams, maxFlux,
                     maxIterations, verbose,)
-        lc = Lightcurve(time, surrogate[1], tbin=tbin)
+        lc = Lightcurve(time, surrogate, tbin=tbin)
         lc.fft = fft
         lc.periodogram = PSDlast
 
