@@ -460,9 +460,9 @@ def TimmerKoenig(RedNoiseL, aliasTbin, randomSeed, tbin, LClength,
 # The Emmanoulopoulos Loop
 
 
-def EmmanLC(time, mean, std, RedNoiseL, aliasTbin, randomSeed, tbin,
+def EmmanLC(length, mean, std, RedNoiseL, aliasTbin, randomSeed, tbin,
             PSDmodel, PSDparams, PDFmodel, PDFparams, maxFlux=None,
-            maxIterations=1000, verbose=False, LClength=None):
+            maxIterations=1000, verbose=False,):
     '''
     Produces a simulated lightcurve with the same power spectral density, mean,
     standard deviation and probability density function as those supplied.
@@ -474,6 +474,7 @@ def EmmanLC(time, mean, std, RedNoiseL, aliasTbin, randomSeed, tbin,
     recommended for speed.
 
     inputs:
+        length  (int)   - Length of simulated LC
         time (array)    - Times from data lightcurve
         flux (array)    - Fluxes from data lightcurve
         mean (float)    - The mean of the resultant lightcurve
@@ -499,11 +500,10 @@ def EmmanLC(time, mean, std, RedNoiseL, aliasTbin, randomSeed, tbin,
         verbose (bool, optional)
                         - If true, will give you some idea what it's
                                     doing, by telling you (default = False)
-        LClength  (int) - Length of simulated LC
 
     outputs:
-        surrogate (array, 2 column)
-                        - simulated lightcurve [time,flux]
+        surrogate (array, 1 column)
+                        - simulated lightcurve [flux,]
         PSDlast (array, 2 column)
                         - simulated lighturve PSD [freq,power]
         shortLC (array, 2 column)
@@ -512,28 +512,20 @@ def EmmanLC(time, mean, std, RedNoiseL, aliasTbin, randomSeed, tbin,
                         - T&K lighturve PSD [freq,power]
         ffti (array)
                         - Fourier transform of surrogate LC
-        LClength (int)
-                        - length of resultant LC if not same as input
     '''
-
-    if LClength:
-        length = LClength
-        time = np.arange(0, tbin * LClength / RedNoiseL, tbin / float(RedNoiseL))
-    else:
-        length = len(time)
 
     # Produce Timmer & Koenig simulated LC
     if verbose:
         print("Running Timmer & Koening...")
 
-    tries = 0
+    tries = 5
 
-    while tries < 5:
+    while tries > 0:
         try:
             shortLC, fft, periodogram = \
                 TimmerKoenig(RedNoiseL, aliasTbin, randomSeed, tbin, length,
                                 std, mean, PSDmodel, PSDparams)
-            tries = 5 + 1
+            tries = -1
 #            if LClength:
 #                shortLC, fft, periodogram = \
 #                    TimmerKoenig(RedNoiseL, aliasTbin, randomSeed, tbin, LClength,
@@ -545,7 +537,7 @@ def EmmanLC(time, mean, std, RedNoiseL, aliasTbin, randomSeed, tbin,
 #                                 std, mean, PSDmodel, PSDparams)
 #                success = True
         except IndexError:
-            tries += 1
+            tries -= 1
             print("Simulation failed for some reason (IndexError) - restarting...")
 
     shortLC = [np.arange(len(shortLC)) * tbin, shortLC]
@@ -564,6 +556,7 @@ def EmmanLC(time, mean, std, RedNoiseL, aliasTbin, randomSeed, tbin,
             maxFlux = 1
         dist = RandAnyDist(PDFmodel, PDFparams, 0, max(maxFlux) * 1.2, length)
         dist = np.array(dist)
+        dist = (dist - np.mean(dist)) / np.std(dist) * std + mean
 
     sortdist = dist[np.argsort(dist)]  # sort!
 
@@ -571,35 +564,29 @@ def EmmanLC(time, mean, std, RedNoiseL, aliasTbin, randomSeed, tbin,
     if verbose:
         print("Iterating...")
 
-    i = 0
-    surrogate = [time, dist]  # start with random distribution from PDF
+    i = maxIterations
+    surrogate = dist # start with random distribution from PDF
 
-    while i < maxIterations:
+    while i > 0:
 
         oldSurrogate = surrogate
 
-        ffti = ft.fft(surrogate[1])
-
-        fftAdj = np.absolute(fft) * (np.cos(np.angle(ffti)) +
-                                     1j * np.sin(np.angle(ffti)))  # adjust fft
+        angle = np.angle(ft.fft(surrogate))
+        fftAdj = np.absolute(fft) * (np.cos(angle) + 1j * np.sin(angle))  # adjust fft
         LCadj = ft.ifft(fftAdj)
-        LCadj = [time / tbin,
-            ((LCadj - np.mean(LCadj)) / np.std(LCadj)) * std + mean]
 
-        PSDLCAdj = ((2.0 * tbin) / (length * np.mean(LCadj)**2.0)) \
-            * np.absolute(ft.fft(LCadj))**2
-        PSDLCAdj = [periodogram[0], np.take(PSDLCAdj, range(1, length // 2 + 1))]
-        ampAdj = sortdist[np.argsort(np.argsort(LCadj[1]))]
+#        PSDLCAdj = ((2.0 * tbin) / (length * np.mean(LCadj)**2.0)) \
+#            * np.absolute(ft.fft(LCadj))**2
+#        print(PSDLCAdj.shape)
+#        PSDLCAdj = [periodogram[0], np.take(PSDLCAdj, range(1, length // 2 + 1))]
+        surrogate = sortdist[np.argsort(np.argsort(LCadj))]
 
-        surrogate = (ampAdj - np.mean(ampAdj)) / np.std(ampAdj)
-        surrogate = [time, (surrogate * std) + mean]  # renormalised LC
+        i = i - 1 if np.array_equal(surrogate, oldSurrogate) == False else -1
 
-        i = i + 1 if np.array_equal(surrogate, oldSurrogate) == False else maxIterations + 1
-        print(i)
+#    if verbose:
+#        print("Converged in {} iterations".format(i))
 
-    if verbose:
-        print("Converged in {} iterations".format(i))
-
+    ffti = ft.fft(surrogate)
     PSDlast = ((2.0 * tbin) / (length * (mean**2))) * np.absolute(ffti)**2
     PSDlast = [periodogram[0], np.take(PSDlast, range(1, length // 2 + 1))]
 
@@ -1472,11 +1459,11 @@ def Simulate_DE_Lightcurve(PSDmodel, PSDparams, PDFmodel, PDFparams, lightcurve=
     for n in range(size):
 
         surrogate, PSDlast, shortLC, periodogram, fft = \
-            EmmanLC(time, mean, std,
+            EmmanLC(length, mean, std,
                     RedNoiseL, aliasTbin, randomSeed, tbin,
                     PSDmodel, PSDparams, PDFmodel, PDFparams, maxFlux,
-                    maxIterations, verbose, length)
-        lc = Lightcurve(surrogate[0], surrogate[1], tbin=tbin)
+                    maxIterations, verbose,)
+        lc = Lightcurve(time, surrogate[1], tbin=tbin)
         lc.fft = fft
         lc.periodogram = PSDlast
 
