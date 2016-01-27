@@ -68,7 +68,6 @@ class Mixture_Dist(object):
         self.__name__ = 'Mixture_Dist'
         self.default = False
 
-        assert len(self.n_args) == len(self.functions)
         if functions[0].__module__ == 'scipy.stats.distributions' or \
             functions[0].__module__ == 'scipy.stats._continuous_distns' or \
                 force_scipy == True:
@@ -104,12 +103,10 @@ class Mixture_Dist(object):
                         all_params.insert(frozed_par[0] -1 + border, frozed_par[1])
 
             args = [ [all_params.pop(0) for i in range(n)] for n in self.n_args]
-#            assert len(all_params) == 0 # Only weights are left.
 
             # cycle through each distribution according to probability weights
             sample = np.hstack([ self.functions[i].rvs(args[i][0], loc=args[i][1],
                 scale=args[i][2], size=((mix > cumWeights[i]) & (mix <= cumWeights[i+1])).sum()) for i,_ in enumerate(self.n_args)])
-#                scale=args[i][2], size=len(np.where((mix > cumWeights[i]) * (mix <= cumWeights[i+1]))[0])) for i,_ in enumerate(self.n_args)])
 
             # randomly mix sample
             np.random.shuffle(sample)
@@ -143,7 +140,6 @@ class Mixture_Dist(object):
                     all_params.insert(frozed_par[0] -1 + border, frozed_par[1])
 
         args = [[all_params.pop(0) for i in range(n)] for n in self.n_args]
-#        assert len(all_params) == 0 # Only weights are left.
 
         data = np.sum([functions[i](x, *par) * weights[i] for i,par in enumerate(args)],axis=0)
 
@@ -192,10 +188,7 @@ def RandAnyDist(f, args, a, b, size=1):
         if p <= v:
             # add to value sample if random number < probability
             out.append(x)
-    if size == 1:
-        return out[0]
-    else:
-        return out
+    return out[0] if size == 1 else out
 
 
 #-------- PDF Fitting ---------------------------------------------------------
@@ -220,11 +213,8 @@ def Min_PDF(params, hist, model):
 
     mids = (hist[1][:-1] + hist[1][1:]) / 2.0
 
-    if model.__name__ == 'Mixture_Dist':
-        model = model.Value
-        m = model(mids, params)
-    else:
-        m = model(mids, *params)
+    m = model.Value(mids, params) if model.__name__ == 'Mixture_Dist' \
+            else  model(mids, *params)
 
     chi = (hist[0] - m)**2.0
 
