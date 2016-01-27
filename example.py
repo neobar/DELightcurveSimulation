@@ -24,7 +24,7 @@ A, v_bend, a_low, a_high, c = 0.03, 2.3e-4, 1.1, 2.2, 0
 # Probability density function params
 kappa, theta, lnmu, lnsig, weight = 5.67, 5.96, 2.14, 0.31, 0.82
 # Simulation params
-RedNoiseL, RandomSeed, aliasTbin, tbin = 100, 12, 1, 100
+RedNoiseL, RandomSeed, tbin = 100, 12, 100
 
 #--------- Commands ---------------
 
@@ -33,15 +33,14 @@ datalc = Load_Lightcurve(route + datfile, tbin)
 
 # create mixture distribution to fit to PDF
 mix_model = Mixture_Dist([st.gamma, st.lognorm], [3, 3], [
-                         [[2], [0]], [[2], [0], ]])
-
+                         [[2, 0]], [[2, 0], ]])
 
 # estimate underlying variance of data light curve
 datalc.STD_Estimate()
 
 # simulate artificial light curve with Timmer & Koenig method
 tklc = Simulate_TK_Lightcurve(BendingPL, (A, v_bend, a_low, a_high, c),
-                              RedNoiseL=RedNoiseL, aliasTbin=aliasTbin, randomSeed=RandomSeed, lightcurve=datalc)
+                              RedNoiseL=RedNoiseL, randomSeed=RandomSeed, lightcurve=datalc)
 
 # simulate artificial light curve with Emmanoulopoulos method, scipy
 # distribution
@@ -59,8 +58,6 @@ delc = datalc.Simulate_DE_Lightcurve()
 delc.Save_Lightcurve('lightcurve.dat')
 
 # plot lightcurves and their PSDs ands PDFs for comparison
-Comparison_Plots([datalc, tklc, delc, delc_mod], names=["Data LC", "Timmer \& Koenig",
+Comparison_Plots([datalc, tklc, delc, delc_mod], names=["Data LC", "Timmer & Koenig",
                                                         "Emmanoulopoulos from model", "Emmanoulopoulos from data"], bins=25)
 
-
-## Most the warning comes from the fitting process of the PSD when the scipy.optimize.minimize is trying to minimize the likelihood function.
