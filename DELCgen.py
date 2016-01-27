@@ -30,12 +30,6 @@ import scipy.optimize as op
 import scipy.special as sp
 
 
-#__all__ = ['Mixture_Dist', 'BendingPL', 'RandAnyDist', 'Min_PDF','OptBins',
-#            'PSD_Prob','SD_estimate','TimmerKoenig','EmmanLC','Lightcurve',
-#            'Comparison_Plots','Load_Lightcurve','Simulate_TK_Lightcurve',
-#            'Simulate_DE_Lightcurve']
-
-
 # ------ Distribution Functions ------------------------------------------
 
 class Mixture_Dist(object):
@@ -74,6 +68,7 @@ class Mixture_Dist(object):
         self.__name__ = 'Mixture_Dist'
         self.default = False
 
+        assert len(self.n_args) == len(self.functions)
         if functions[0].__module__ == 'scipy.stats.distributions' or \
             functions[0].__module__ == 'scipy.stats._continuous_distns' or \
                 force_scipy == True:
@@ -89,75 +84,39 @@ class Mixture_Dist(object):
         inputs:
             params (array)     - list of free parameters in each function
                                  followed by the weights - e.g.:
-                                 [f1_p1,f1_p2,f2_p1,f2_p2,f2+p3,w1,w2]
+                                 [f1_p1,f1_p2,f2_p1,f2_p2,f2_p3,w1,w2]
             length (int)                - Length of the random sample
         outputs:
             sample (array, float)       - The random sample
         '''
 
         if self.scipy == True:
-            cumWeights = np.cumsum(params[-len(self.functions):])
+            cumWeights = np.hstack([0, np.cumsum(params[-len(self.functions):])])
             # random sample for function choice
             mix = np.random.random(size=length) * cumWeights[-1]
 
-            sample = np.array([])
-
-            args = []
+            all_params = list(params[:-len(self.n_args)])
 
             if self.frozen:
-                n = self.n_args[0] - len(self.frozen[0][0])
-                par = params[:n]
-                if len(self.frozen[0]) > 0:
-                    for f in range(len(self.frozen[0][0])):
-                        par = np.insert(par, self.frozen[0][0][f] - 1,
-                                        self.frozen[0][1][f])
-            else:
-                n = self.n_args[0]
-                par = params[:n]
+                borders = np.cumsum(np.hstack([0, self.n_args]))[:-1]
+                for frozed_pars, border in zip(self.frozen, borders):
+                    for frozed_par in frozed_pars:
+                        all_params.insert(frozed_par[0] -1 + border, frozed_par[1])
 
-            args.append(par)
-
-            for i in range(1, len(self.functions)):
-                if self.frozen:
-                    if len(self.frozen[i]) > 0:
-                        n_next = n + self.n_args[i] - len(self.frozen[i][0])
-                        par = params[n:n_next]
-                        if len(self.frozen[i]) > 0:
-                            for f in range(len(self.frozen[i][0])):
-                                par = np.insert(par,
-                                                self.frozen[i][0][f] - 1, self.frozen[i][1][f])
-                        else:
-                            n_next = n + self.n_args[i]
-                            par = params[n:n_next]
-                    else:
-                        n_next = n + self.n_args[i]
-                        par = params[n:n_next]
-                args.append(par)
+            args = [ [all_params.pop(0) for i in range(n)] for n in self.n_args]
+#            assert len(all_params) == 0 # Only weights are left.
 
             # cycle through each distribution according to probability weights
-            for i in range(len(self.functions)):
-                if i > 0:
-
-                    sample = np.append(sample, self.functions[i].rvs(args[i][0],
-                                                                     loc=args[i][
-                                                                         1], scale=args[i][2],
-                                                                     size=len(np.where((mix > cumWeights[i - 1]) *
-                                                                                       (mix <= cumWeights[i]))[0])))
-
-                else:
-                    sample = np.append(sample, self.functions[i].rvs(args[i][0],
-                                                                     loc=args[i][
-                                                                         1], scale=args[i][2],
-                                                                     size=len(np.where((mix <= cumWeights[i]))[0])))
+            sample = np.hstack([ self.functions[i].rvs(args[i][0], loc=args[i][1],
+                scale=args[i][2], size=((mix > cumWeights[i]) & (mix <= cumWeights[i+1])).sum()) for i,_ in enumerate(self.n_args)])
+#                scale=args[i][2], size=len(np.where((mix > cumWeights[i]) * (mix <= cumWeights[i+1]))[0])) for i,_ in enumerate(self.n_args)])
 
             # randomly mix sample
             np.random.shuffle(sample)
 
             # return single values as floats, not arrays
-            if len(sample) == 1:
-                sample = sample[0]
+            return sample[0] if length == 1 else sample
 
-            return sample
 
     def Value(self, x, params):
         '''
@@ -172,50 +131,23 @@ class Mixture_Dist(object):
         outputs:
             data (array)        - output data array
         '''
+        functions = [f.pdf for f in self.functions] if self.scipy == True else self.functions
+        weights = np.array(params[-len(functions):])
 
-        if self.scipy == True:
-            functions = []
-            for f in self.functions:
-                functions.append(f.pdf)
-        else:
-            functions = self.functions
-
-        n = self.n_args[0]
+        all_params = list(params[:-len(functions)])
 
         if self.frozen:
-            n = self.n_args[0] - len(self.frozen[0][0])
-            par = params[:n]
-            if len(self.frozen[0]) > 0:
-                for f in range(len(self.frozen[0][0])):
-                    par = np.insert(par, self.frozen[0][0][f] - 1,
-                                    self.frozen[0][1][f])
-        else:
-            n = self.n_args[0]
-            par = params[:n]
+            borders = np.cumsum(np.hstack([0, self.n_args]))[:-1]
+            for frozed_pars, border in zip(self.frozen, borders):
+                for frozed_par in frozed_pars:
+                    all_params.insert(frozed_par[0] -1 + border, frozed_par[1])
 
-        data = np.array(functions[0](x, *par)) * params[-len(functions)]
-        for i in range(1, len(functions)):
+        args = [[all_params.pop(0) for i in range(n)] for n in self.n_args]
+#        assert len(all_params) == 0 # Only weights are left.
 
-            if self.frozen:
-                if len(self.frozen[i]) > 0:
-                    n_next = n + self.n_args[i] - len(self.frozen[i][0])
-                    par = params[n:n_next]
-                    if len(self.frozen[i]) > 0:
-                        for f in range(len(self.frozen[i][0])):
-                            par = np.insert(par, self.frozen[i][0][f] - 1,
-                                            self.frozen[i][1][f])
-                else:
-                    n_next = n + self.n_args[i]
-                    par = params[n:n_next]
-            else:
-                n_next = n + self.n_args[i]
-                par = params[n:n_next]
+        data = np.sum([functions[i](x, *par) * weights[i] for i,par in enumerate(args)],axis=0)
 
-            data += np.array(functions[i](x, *par)) * \
-                params[-len(functions) + i]
-            n = n_next
-        data /= np.sum(params[-len(functions):])
-        return data
+        return data / np.sum(weights)
 
 
 def BendingPL(v, A, v_bend, a_low, a_high, c):
@@ -827,7 +759,7 @@ class Lightcurve(object):
 
         if model is None:
             model = Mixture_Dist([st.gamma, st.lognorm],
-                                 [3, 3], [[[2], [0]], [[2], [0], ]])
+                                 [3, 3], [[[2, 0]], [[2, 0], ]])
             model.default = True
 
         if nbins is None:
