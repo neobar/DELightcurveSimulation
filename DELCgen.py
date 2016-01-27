@@ -384,7 +384,7 @@ def TimmerKoenig(RedNoiseL, aliasTbin, randomSeed, tbin, LClength,
 
 def EmmanLC(length, mean, std, RedNoiseL, aliasTbin, randomSeed, tbin,
             PSDmodel, PSDparams, PDFmodel, PDFparams, maxFlux=None,
-            maxIterations=1000, verbose=False,):
+            maxIterations=5000, verbose=False,):
     '''
     Produces a simulated lightcurve with the same power spectral density, mean,
     standard deviation and probability density function as those supplied.
@@ -469,8 +469,9 @@ def EmmanLC(length, mean, std, RedNoiseL, aliasTbin, randomSeed, tbin,
             maxFlux = 1
         dist = RandAnyDist(PDFmodel, PDFparams, 0, max(maxFlux) * 1.2, length)
         dist = np.array(dist)
-        dist = (dist - np.mean(dist)) / np.std(dist) * std + mean
+        print('once')
 
+#    dist = (dist - np.mean(dist)) / np.std(dist) * std + mean
     sortdist = dist[np.argsort(dist)]  # sort!
 
     # Iterate over the random sample until its PSD (and PDF) match the data
@@ -1332,6 +1333,7 @@ def Simulate_DE_Lightcurve(PSDmodel, PSDparams, PDFmodel, PDFparams, lightcurve=
         mean = kwargs.pop('mean', 1)
         std = kwargs.pop('std', 1)
         time = np.arange(0, length ) * tbin
+        maxFlux = kwargs.pop('maxFlux', None)
 
     lcs = np.array([])
 
